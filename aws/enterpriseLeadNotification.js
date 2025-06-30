@@ -2,7 +2,7 @@ import https from "https";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 
-const apolloApiKey = process.env.VITE_APOLLO_API_KEY;
+const apolloApiKey = process.env.APOLLO_API_KEY;
 const freeDomains = [
   "gmail.com",
   "yahoo.com",
@@ -10,8 +10,8 @@ const freeDomains = [
   "icloud.com",
   "hotmail.com",
 ];
-const dynamoTableName = process.env.VITE_DYNAMO_TABLE_NAME;
-const snsTopicArn = process.env.VITE_SNS_TOPIC_ARN;
+const dynamoTableName = process.env.DYNAMO_TABLE_NAME || "EnterpriseSalesLead";
+const snsTopicArn = process.env.SNS_TOPIC_ARN;
 
 const dynamo = new DynamoDBClient({ region: "us-east-1" });
 const sns = new SNSClient({ region: "us-east-1" });

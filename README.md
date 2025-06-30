@@ -1,69 +1,120 @@
-# React + TypeScript + Vite
+# 📍 LeadAgent
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**LeadAgent** is a serverless lead qualification tool built on AWS. It automatically enriches and stores company data when a user signs up and sends you an instant email if the user works in a target industry (e.g. video editing). The goal: identify high-value business leads at signup with zero manual effort.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## How It Works
 
-## Expanding the ESLint configuration
+![AWS Lambda Architecture](./AWS_LAMBDA_ARCHITECTURE.png)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. **User signs up** via AWS Cognito.
+2. A **Lambda function** is triggered upon account confirmation (`PostConfirmation_ConfirmSignUp` event).
+3. The Lambda function:
+   - Extracts the user's email domain.
+   - Skips common personal domains like Gmail, Yahoo, etc.
+   - Calls the Apollo API to retrieve company information based on the domain.
+   - Validates if the company matches pre-configured keywords (e.g., "video editing").
+   - If relevant, stores the data in **DynamoDB** and sends an alert via **SNS email**.
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+## 🛠 Technologies Used
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
+| Component      | Service                                |
+| -------------- | -------------------------------------- |
+| Auth & Trigger | AWS Cognito (PostConfirmation trigger) |
+| Runtime        | AWS Lambda (Node.js)                   |
+| Data Store     | AWS DynamoDB                           |
+| Alerts         | AWS SNS (Simple Notification Service)  |
+| Enrichment API | Apollo.io                              |
+
+---
+
+## Setup Instructions
+
+### 1. **Environment Variables**
+
+Configure the following environment variables in your Lambda function:
+
+- `APOLLO_API_KEY`: Your Apollo.io API key
+- `SNS_TOPIC_ARN`: Your SNS topic ARN
+- `DYNAMO_TABLE_NAME`: DynamoDB table name (defaults to "EnterpriseSalesLead")
+
+### 2. **AWS Infrastructure Setup**
+
+1. **Create a DynamoDB table**:
+
+   - Table name: `EnterpriseSalesLead` (or your custom name)
+   - Partition key: `ID` (String)
+
+2. **Create an SNS topic**:
+
+   - Add email subscription for lead notifications
+   - Note the topic ARN for the environment variable
+
+3. **Deploy the Lambda function**:
+
+   - Upload `aws/enterpriseLeadNotification.js`
+   - Set the environment variables listed above
+   - Ensure the function has proper IAM permissions (see below)
+
+4. **Configure Cognito trigger**:
+   - Attach the Lambda function to the **PostConfirmation_ConfirmSignUp** trigger
+
+### 3. **IAM Permissions**
+
+Your Lambda function needs these IAM permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:PutItem"
+      ],
+      "Resource": "arn:aws:dynamodb:*:*:table/EnterpriseSalesLead"
     },
-  },
-])
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sns:Publish"
+      ],
+      "Resource": "arn:aws:sns:*:*:EnterpriseSalesLeadEmail"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 4. **Frontend Development (Optional)**
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+If you want to run the React frontend locally:
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+# Install dependencies
+npm install
+# or
+yarn install
+
+# Start development server
+npm run dev
+# or
+yarn dev
 ```
+
+---
+
+## License
+
+This project is built for hackathon demonstration purposes and is not intended for production use without further security and performance considerations.
